@@ -3,11 +3,13 @@
 DigitalOut myled(LED1);
 Mutex stdio_mutex;
 Thread thread1;
-Thread thread2;
+
+InterruptIn bouton(BUTTON1);
+
+EventQueue queue;
 namespace {
 #define PERIOD_MS 1s
-int a =0;
-int b =0;
+
 }
 
 using namespace sixtron;
@@ -16,26 +18,29 @@ using namespace sixtron;
 static I2C i2c(I2C1_SDA, I2C1_SCL);
 static BME280 bme(&i2c, BME280::I2CAddress::Address1);
 
-void Ping_thread(){
-	
-	while (a<100){
-		stdio_mutex.lock();
-		printf("Ping\n");
-		a = a+1; 	
-		stdio_mutex.unlock();
+void HumTemp(){
+	printf(  "Humidity:    %.3f %%\n",  bme.humidity());
+	printf("\nTemperature: %.3f °C\n",  bme.temperature());
 	}
 	
+
+
+void Press(){
+	printf(  "Pressure:    %.3f hPa\n", (bme.pressure() / 100.0f));
 }
 
-void Pong_thread(){
-	
-	while (b<100){
-		stdio_mutex.lock();
-		printf("Pong\n");
-		b = b+1; 
-		stdio_mutex.unlock();
+void Led(){
+	if (myled.read() == 0){
+			myled.write(1);
 	}
-	
+	else {
+			myled.write(0);
+	}
+}
+
+void boutonInterrupt(){
+	queue.call(Press);
+
 }
 
 int main()
@@ -53,22 +58,17 @@ int main()
                      BME280::StandbyDuration::MS_1000);
 
 	
+	thread1.start(callback(&queue, &EventQueue::dispatch_forever));
+	queue.call_every(2000ms, HumTemp);
+	queue.call_every(5000ms, Led);
 	
-	thread1.start(Ping_thread);
-	thread2.start(Pong_thread);
-
+	bouton.rise(boutonInterrupt);
 
     while (true) {
-       /* printf("\nTemperature: %.3f °C\n",  bme.temperature());
-        printf(  "Pressure:    %.3f hPa\n", (bme.pressure() / 100.0f));
-        printf(  "Humidity:    %.3f %%\n",  bme.humidity());*/
+       
+       
         wait_us(5000);
-		if (myled.read() == 0){
-			myled.write(1);
-		}
-		else {
-			myled.write(0);
-		}
+		
         ThisThread::sleep_for(PERIOD_MS);
     }
 }
