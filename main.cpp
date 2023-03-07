@@ -3,39 +3,28 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "mbed.h"
+I2C i2c(I2C1_SDA, I2C1_SCL);
 
 namespace {
 #define PERIOD_MS 2000ms
-DigitalOut myled(LED1);
-InterruptIn bouton(BUTTON1);
-uint64_t a = 0;
-int b = 0;
-Timer t;
 }
-void flip(){
-	t.start();
-	myled.write(1);
-}
+const int addr8bit = 0x18 << 1;
 
-void flip2(){
-	t.stop();
-	a=t.read_ms();
-	b=1;
-}
+
 
 int main()
 {
-	bouton.rise(flip);
-	bouton.fall(flip2);
 	
+	char data[2];
 	while(true)	{
 
-		if (b == 1) {
-			printf("timer = %lld milliseconds\n",a);
-			myled.write(0);
-			b=0;
-			t.reset();
-		}
+		data[0] = 0x08;
+		i2c.write(addr8bit, data, 1);
+		i2c.read(addr8bit, data, 1);
+
+		printf("Temp = %f\n", float(data[0])/2.+23);
+
+	
 		ThisThread::sleep_for(PERIOD_MS / 2);
 	}
 		
